@@ -20,10 +20,13 @@ blueprint:
           domain: sensor
           device_class: temperature
     grain_moisture_sensor:
-      name: Grain Moisture Sensor
+      name: Grain Moisture Sensor (optional)
+      default: ""
       selector:
         entity:
           domain: sensor
+          multiple: false
+          include_entities:
     grain_moisture_threshold:
       name: Max Grain Moisture (%)
       default: 15
@@ -97,6 +100,7 @@ trigger:
     minutes: "/1"  # Check every minute
 action:
   - choose:
+      # Branch 1: Safety - If fans are not allowed, always turn off the fan
       - conditions:
           - condition: template
             value_template: >
@@ -105,30 +109,40 @@ action:
           - service: switch.turn_off
             target:
               entity_id: !input fan_switch
+
+      # Branch 2: All run conditions met - Turn fan ON
       - conditions:
           - condition: template
             value_template: >
               {{
-                is_state(fans_allowed_sensor, 'on') and
-                (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) > temp_diff_required and
-                (states(grain_moisture_sensor) | float) < grain_moisture_threshold and
-                (states(air_humidity_sensor) | float) < air_humidity_threshold and
-                (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
+                is_state(fans_allowed_sensor, 'on')
+                and (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) > temp_diff_required
+                and (
+                  (grain_moisture_sensor == "" )
+                  or (states(grain_moisture_sensor) | float < grain_moisture_threshold)
+                )
+                and (states(air_humidity_sensor) | float) < air_humidity_threshold
+                and (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
               }}
         sequence:
           - service: switch.turn_on
             target:
               entity_id: !input fan_switch
+
+      # Branch 3: Any stop condition met (except safety) - Turn fan OFF
       - conditions:
           - condition: template
             value_template: >
               {{
                 (
-                  (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) < temp_diff_required or
-                  (states(grain_moisture_sensor) | float) > grain_moisture_threshold or
-                  (states(air_humidity_sensor) | float) > air_humidity_threshold
-                ) and
-                (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
+                  (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) < temp_diff_required
+                  or (
+                    grain_moisture_sensor != ""
+                    and (states(grain_moisture_sensor) | float) > grain_moisture_threshold
+                  )
+                  or (states(air_humidity_sensor) | float) > air_humidity_threshold
+                )
+                and (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
               }}
         sequence:
           - service: switch.turn_off
