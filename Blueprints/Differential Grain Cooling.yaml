@@ -26,7 +26,6 @@ blueprint:
         entity:
           domain: sensor
           multiple: false
-          include_entities:
     grain_moisture_threshold:
       name: Max Grain Moisture (%)
       default: 15
