@@ -51,7 +51,7 @@ blueprint:
           mode: slider
     temp_diff_required:
       name: Required Temperature Difference (°C)
-      default: 3
+      default: 5
       selector:
         number:
           min: 0
@@ -81,6 +81,12 @@ blueprint:
           mode: slider
 mode: single
 variables:
+  heap_temp_sensor: !input heap_temp_sensor
+  shed_temp_sensor: !input shed_temp_sensor
+  grain_moisture_sensor: !input grain_moisture_sensor
+  air_humidity_sensor: !input air_humidity_sensor
+  fan_switch: !input fan_switch
+  fans_allowed_sensor: !input fans_allowed_sensor
   temp_diff_required: !input temp_diff_required
   grain_moisture_threshold: !input grain_moisture_threshold
   air_humidity_threshold: !input air_humidity_threshold
@@ -92,10 +98,10 @@ condition:
   - condition: template
     value_template: >
       {{
-        is_state(states('!input fans_allowed_sensor'), 'on') and
-        (states(states('!input heap_temp_sensor')) | float - states(states('!input shed_temp_sensor')) | float) > temp_diff_required and
-        (states(states('!input grain_moisture_sensor')) | float) < grain_moisture_threshold and
-        (states(states('!input air_humidity_sensor')) | float) < air_humidity_threshold
+        is_state(fans_allowed_sensor, 'on') and
+        (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) > temp_diff_required and
+        (states(grain_moisture_sensor) | float) < grain_moisture_threshold and
+        (states(air_humidity_sensor) | float) < air_humidity_threshold
       }}
 action:
   - choose:
@@ -103,7 +109,7 @@ action:
           - condition: template
             value_template: >
               {{
-                (now() - as_datetime(states[states('!input fan_switch')].last_changed)).total_seconds() > (min_runtime * 60)
+                (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
               }}
         sequence:
           - service: switch.turn_on
@@ -113,14 +119,14 @@ action:
           - condition: template
             value_template: >
               {{
-                (states(states('!input heap_temp_sensor')) | float - states(states('!input shed_temp_sensor')) | float) < temp_diff_required or
-                (states(states('!input grain_moisture_sensor')) | float) > grain_moisture_threshold or
-                (states(states('!input air_humidity_sensor')) | float) > air_humidity_threshold
+                (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) < temp_diff_required or
+                (states(grain_moisture_sensor) | float) > grain_moisture_threshold or
+                (states(air_humidity_sensor) | float) > air_humidity_threshold
               }}
           - condition: template
             value_template: >
               {{
-                (now() - as_datetime(states[states('!input fan_switch')].last_changed)).total_seconds() > (min_runtime * 60)
+                (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
               }}
         sequence:
           - service: switch.turn_off
