@@ -1,0 +1,125 @@
+blueprint:
+  name: Differential Grain Cooling Fan Control
+  description: >
+    Controls a fan for grain cooling based on heap vs shed temperature difference,
+    grain moisture, and air humidity. Includes safety check for fans_allowed_to_run
+    and optional minimum runtime to avoid short cycling.
+  domain: automation
+  input:
+    heap_temp_sensor:
+      name: Heap Temperature Sensor
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    shed_temp_sensor:
+      name: Shed Temperature Sensor
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    grain_moisture_sensor:
+      name: Grain Moisture Sensor
+      selector:
+        entity:
+          domain: sensor
+    grain_moisture_threshold:
+      name: Max Grain Moisture (%)
+      default: 15
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          step: 0.1
+          mode: slider
+    air_humidity_sensor:
+      name: Air Humidity Sensor
+      selector:
+        entity:
+          domain: sensor
+          device_class: humidity
+    air_humidity_threshold:
+      name: Max Air Humidity (%)
+      default: 70
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          step: 1
+          mode: slider
+    temp_diff_required:
+      name: Required Temperature Difference (°C)
+      default: 3
+      selector:
+        number:
+          min: 0
+          max: 20
+          unit_of_measurement: "°C"
+          step: 0.1
+          mode: slider
+    fan_switch:
+      name: Fan Switch
+      selector:
+        entity:
+          domain: switch
+    fans_allowed_sensor:
+      name: Fans Allowed to Run Sensor
+      selector:
+        entity:
+          domain: binary_sensor
+    min_runtime:
+      name: Minimum Runtime (minutes)
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 60
+          unit_of_measurement: "min"
+          step: 1
+          mode: slider
+mode: single
+trigger:
+  - platform: time_pattern
+    minutes: "/1"  # Check every minute
+condition:
+  - condition: template
+    value_template: >
+      {{
+        is_state(fans_allowed_sensor, 'on') and
+        (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) >
+        temp_diff_required and
+        states(grain_moisture_sensor) | float < grain_moisture_threshold and
+        states(air_humidity_sensor) | float < air_humidity_threshold
+      }}
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{
+                (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
+              }}
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input fan_switch
+      - conditions:
+          - condition: template
+            value_template: >
+              {{
+                (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) <
+                temp_diff_required or
+                states(grain_moisture_sensor) | float > grain_moisture_threshold or
+                states(air_humidity_sensor) | float > air_humidity_threshold
+              }}
+          - condition: template
+            value_template: >
+              {{
+                (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
+              }}
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input fan_switch
