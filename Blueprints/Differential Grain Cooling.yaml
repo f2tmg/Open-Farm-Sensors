@@ -5,6 +5,7 @@ blueprint:
     grain moisture, and air humidity. Includes safety check for fans_allowed_to_run
     and optional minimum runtime to avoid short cycling.
   domain: automation
+  source_url: https://github.com/f2tmg/Open-Farm-Sensors/blob/main/Blueprints/Differential%20Grain%20Cooling.yaml
   input:
     heap_temp_sensor:
       name: Heap Temperature Sensor
