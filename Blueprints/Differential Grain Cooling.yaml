@@ -38,6 +38,7 @@ blueprint:
           mode: slider
     air_humidity_sensor:
       name: Air Humidity Sensor
+      default: ""
       selector:
         entity:
           domain: sensor
@@ -117,10 +118,13 @@ action:
                 is_state(fans_allowed_sensor, 'on')
                 and (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) > temp_diff_required
                 and (
-                  (grain_moisture_sensor == "" )
-                  or (states(grain_moisture_sensor) | float < grain_moisture_threshold)
+                  (grain_moisture_sensor == "")
+                  or ((states(grain_moisture_sensor) | float) < grain_moisture_threshold)
                 )
-                and (states(air_humidity_sensor) | float) < air_humidity_threshold
+                and (
+                  (air_humidity_sensor == "")
+                  or ((states(air_humidity_sensor) | float) < air_humidity_threshold)
+                )
                 and (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
               }}
         sequence:
@@ -139,7 +143,7 @@ action:
                     grain_moisture_sensor != ""
                     and (states(grain_moisture_sensor) | float) > grain_moisture_threshold
                   )
-                  or (states(air_humidity_sensor) | float) > air_humidity_threshold
+                  or (air_humidity_sensor != "" and (states(air_humidity_sensor) | float) > air_humidity_threshold)
                 )
                 and (now() - as_datetime(states[fan_switch].last_changed)).total_seconds() > (min_runtime * 60)
               }}
