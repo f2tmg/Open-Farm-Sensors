@@ -27,7 +27,7 @@ blueprint:
           domain: sensor
           multiple: false
     grain_moisture_threshold:
-      name: Max Grain Moisture (%)
+      name: Min Grain Moisture (%)
       default: 15
       selector:
         number:
@@ -119,7 +119,7 @@ action:
                 and (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) > temp_diff_required
                 and (
                   (grain_moisture_sensor == "")
-                  or ((states(grain_moisture_sensor) | float) < grain_moisture_threshold)
+                  or ((states(grain_moisture_sensor) | float) >= grain_moisture_threshold)
                 )
                 and (
                   (air_humidity_sensor == "")
@@ -141,7 +141,7 @@ action:
                   (states(heap_temp_sensor) | float - states(shed_temp_sensor) | float) < temp_diff_required
                   or (
                     grain_moisture_sensor != ""
-                    and (states(grain_moisture_sensor) | float) > grain_moisture_threshold
+                    and (states(grain_moisture_sensor) | float) < grain_moisture_threshold
                   )
                   or (air_humidity_sensor != "" and (states(air_humidity_sensor) | float) > air_humidity_threshold)
                 )
